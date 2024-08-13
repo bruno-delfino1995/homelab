@@ -1,0 +1,6 @@
+---
+- name: Setup machine
+  hosts: kirk
+  tasks:
+    - name: Ping my node
+      ansible.builtin.ping:
