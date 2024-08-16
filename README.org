@@ -1,0 +1,13 @@
+#+TITLE: Kirk
+
+#+BEGIN_QUOTE
+If he controls The Interstellar, my homelab will be a breeze
+#+END_QUOTE
+
+* Setup
+
+As it uses ansible-vault, and I don't want to have a plain password file. You'll need to install KeePassXC and set the following environment variables:
+
+- ~KDBX_DATABASE~: path to your kdbx file
+  - It supports tilde expansion, provided it's ~​~/~
+- ~KDBX_ENTRY~: the "path" to the entry containing your password

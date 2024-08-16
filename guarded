@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -uo pipefail
+IFS=$'\n\t'
+
+DIR=$(realpath "$(dirname "$0")")
+
+cd "$DIR" || exit 1
+
+echo -n "Enter password to unlock your KDBX database: " >&2
+PASSWORD=$(keepassxc-cli show -sa password "${KDBX_DATABASE/#\~/$HOME}" "$KDBX_ENTRY" 2> /dev/null)
+
+if [ $? -ne 0 ]; then
+	echo -e "\nUnable to unlock your KDBX database" >&2
+	exit 1
+fi
+
+echo ""
+echo "$PASSWORD" | $*

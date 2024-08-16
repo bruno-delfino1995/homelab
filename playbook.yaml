@@ -2,5 +2,25 @@
 - name: Setup machine
   hosts: kirk
   tasks:
-    - name: Ping my node
-      ansible.builtin.ping:
+    - name: Check passwords
+      block:
+        - name: Check SSH
+          command: echo "Connected to node"
+          changed_when: false
+
+        - name: Clear cached password
+          command: sudo -k
+          changed_when: false
+
+        - name: Try password out
+          timeout: 1
+          become: true
+          command: echo "Password is correct"
+          changed_when: false
+          ignore_errors: true
+          register: result
+
+        - name: Check if password worked
+          when: result is failed or result.rc is not defined or result.rc != 0
+          fail:
+            msg: "Invalid password"

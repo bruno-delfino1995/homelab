@@ -7,4 +7,4 @@ DIR=$(realpath "$(dirname "$0")")
 
 cd "$DIR" || exit 1
 
-./guarded ansible-playbook --vault-password-file=/bin/cat playbook.yaml
+./guarded ansible-vault encrypt_string --vault-password-file=/bin/cat "$1"
