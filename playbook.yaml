@@ -1,26 +1,131 @@
 ---
 - name: Setup machine
   hosts: kirk
+  gather_facts: yes
+  any_errors_fatal: true
   tasks:
-    - name: Check passwords
-      block:
-        - name: Check SSH
-          command: echo "Connected to node"
-          changed_when: false
+    - name: Check SSH
+      command: echo "Connected to node"
+      changed_when: false
 
-        - name: Clear cached password
-          command: sudo -k
-          changed_when: false
+    - name: Clear cached password
+      command: sudo -k
+      changed_when: false
 
-        - name: Try password out
-          timeout: 1
-          become: true
-          command: echo "Password is correct"
-          changed_when: false
-          ignore_errors: true
-          register: result
+    - name: Try password out
+      timeout: 1
+      become: true
+      command: echo "Password is correct"
+      changed_when: false
+      ignore_errors: true
+      register: result
 
-        - name: Check if password worked
-          when: result is failed or result.rc is not defined or result.rc != 0
-          fail:
-            msg: "Invalid password"
+    - name: Check if password worked
+      when: result is failed or result.rc is not defined or result.rc != 0
+      fail:
+        msg: "Invalid password"
+
+    - name: Install base software
+      become: true
+      ansible.builtin.apt:
+        pkg:
+          - gnupg2
+          - vim
+
+    - name: Install btrfs tools
+      become: true
+      ansible.builtin.apt:
+        pkg:
+          - btrfs-progs
+
+- name: Setup repositories
+  hosts: kirk
+  gather_facts: yes
+  any_errors_fatal: true
+  tasks:
+    - name: Import maintainer's public key
+      become: true
+      ansible.builtin.apt_key:
+        id: 4EFC590696CB15B87C73A3AD82CC8797C838DCFD
+        url: https://pkgs.zabbly.com/key.asc
+
+    - name: Add Zabbly repository for stable version
+      become: true
+      ansible.builtin.deb822_repository:
+        name: zabbly-incus-stable
+        types: deb
+        uris: https://pkgs.zabbly.com/incus/stable
+        suites: "{{ ansible_distribution_release }}"
+        components: main
+        architectures: amd64
+        signed_by: 4EFC590696CB15B87C73A3AD82CC8797C838DCFD
+
+  handlers:
+    - name: Update apt cache
+      become: true
+      ansible.builtin.apt:
+        force_apt_get: yes
+        update_cache: yes
+        cache_valid_time: 0
+
+- name: Setup Incus
+  hosts: kirk
+  gather_facts: yes
+  any_errors_fatal: true
+  tasks:
+    - name: Install Incus
+      register: install
+      become: true
+      ansible.builtin.apt:
+        name: incus
+        install_recommends: no
+
+    - name: Install Incus UI
+      become: true
+      ansible.builtin.apt:
+        name: incus-ui-canonical
+        install_recommends: no
+
+    - name: Enable user to manage Incus
+      register: user_groups
+      become: true
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: incus-admin
+        append: yes
+
+    - name: Reload groups
+      when: user_groups.changed
+      ansible.builtin.include_tasks: reload.yaml
+
+    - name: Set client listen address
+      when: install.changed
+      ansible.builtin.shell:
+        cmd: incus --force-local config set core.https_address :8443
+
+    - name: Create network
+      when: install.changed
+      ansible.builtin.shell:
+        cmd: incus --force-local network create default --type=macvlan parent=enp1s0
+
+    - name: Add network to default profile
+      when: install.changed
+      ansible.builtin.shell:
+        cmd: incus --force-local profile device add default eth0 nic network=default name=eth0
+
+    - name: Create storage pool
+      when: install.changed
+      ansible.builtin.shell:
+        cmd: incus --force-local storage create default btrfs source=/dev/sda4
+
+    - name: Add storage pool to default profile
+      when: install.changed
+      ansible.builtin.shell:
+        cmd: incus --force-local profile device add default root disk path=/ pool=default
+
+  handlers:
+    - name: Restart Incus
+      become: true
+      ansible.builtin.systemd:
+        name: incus.service
+        state: restarted

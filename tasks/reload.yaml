@@ -1,0 +1,4 @@
+---
+- name: Reconnect session
+  ansible.builtin.meta:
+    reset_connection

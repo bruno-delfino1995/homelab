@@ -16,4 +16,4 @@ if [ $? -ne 0 ]; then
 fi
 
 echo ""
-echo "$PASSWORD" | $*
+echo "$PASSWORD" | $@
