@@ -1,1 +1,12 @@
 ansible_host: 192.168.144.20
+incus:
+  network:
+    default:
+      type: macvlan
+      config:
+        parent: enp1s0
+  storage:
+    default:
+      driver: btrfs
+      config:
+        source: /dev/sda4

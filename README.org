@@ -1,7 +1,7 @@
-#+TITLE: Kirk
+#+TITLE: Homelab
 
 #+BEGIN_QUOTE
-If he controls The Interstellar, my homelab will be a breeze
+Fully automated configuration of a homelab. From OpenWrt router to k8s cluster
 #+END_QUOTE
 
 * Setup
