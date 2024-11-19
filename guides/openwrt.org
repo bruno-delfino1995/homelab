@@ -1,0 +1,172 @@
+#+TITLE: How to install OpenWrt
+
+* Access Incus UI
+
+TLDR: Don't click "Remember this decision" and follow the guide, that's it!!!
+
+- Create a certificate (~.crt~) in your browser and send it to your incus instance
+- Trust the certificate in your instance
+- Add the ~.pfx~ file in your browser certificates
+- Enter the UI and identify yourself using that certificate
+
+* Connectivity for your internal instances
+
+- Create a bridge network and let incus choose an IPV4 address
+- Use the first address of that subnet when setting the *Lan IP* in OpenWrt
+
+* Creating OpenWrt instance
+
+- Create an instance with at least 8MB of storage and 64MB of memory - [[https://openwrt.org/docs/guide-quick-start/factory_installation][requirements]]
+- Allow only one core as more would be wasteful
+- Set 0 as the disk priority given how important your router is
+- Protect it from deletion as well
+
+
+#+BEGIN_SRC sh
+  # create the instance
+  incus launch images:openwrt/23.05 openwrt
+  # open a shell to configure it
+  incus exec openwrt -- sh
+  # set a password for the root user (used in LuCI)
+  passwd
+  # update openwrt packages
+  opkg update
+  # install the LuCI web ui
+  opkg install luci
+  # install a plugin to enable ssl in LuCI
+  opkg install luci-ssl
+  # enable the service because opkg packages don't start by themselves on boot
+  /etc/init.d/uhttpd enable
+#+END_SRC
+
+* Configure your instance's network
+
+- Create a physical nic for every interface you want to send to your router
+- Create a bridge network to allow other instances in your host to acquire an IP
+    - For bridge networks, the name can't be ~default~!!!
+- Check the network address you got from your current router (~ip a~) and fix it
+    - It'll prevent you from getting a new address each reboot during the setup
+
+* Enable WAN access in OpenWrt's
+
+- The LuCI interface isn't available to devices outside of your lan, you need to edit the firewall to enable that
+
+#+BEGIN_SRC
+# /etc/config/firewall
+config rule
+	option src		wan
+	option dest_port	80
+	option proto		tcp
+	option target		ACCEPT
+
+config rule
+	option src		wan
+	option dest_port	443
+	option proto		tcp
+	option target		ACCEPT
+#+END_SRC
+
+- Reboot your system so you're sure things get reloaded
+
+
+* Configure OpenWrt network
+
+- Create a bridge device (~br-lan~) to group all of your lan interfaces
+- Create an interface (~lan~) to provide IPs to your devices with OpenWrt's DHCP server behind
+- Use the first IP address in the same subnet as your bridge (~10.173.159.10/24~) as the IPv4 of your static interface
+- Start a simple http server in your host (~python3 -m http.server 8080~), create another instance in the same bridge as your router
+- Try to reach your host from a shell in the instance
+
+* Change cables!!!
+
+There're two options, the risky one that tries to get everything right while connected through your current WAN address
+
+- Change your wan configuration to your final config
+    - Like a PPPoE connection or other way to connect to your ISP
+    - You'll have to apply unchecked and hope that it works 
+- Change the WAN interface to receive from your IPON device instead of the old router
+- Connect your access point to the new router
+- Check the connectivity by going to ~http://amionline.net~
+
+The second option is a little safer but you'll lose conectivity for a brief moment. It's basically the same as option 1 but with you manually changing the wan after the network is correctly wired
+
+- Change the cables from your old router to the IPON device
+- Connect your access point to the new router
+- Go to the IP you set for your new LAN
+- Change the WAN configuration to your final config
+
+* PPPoE Troubleshooting
+
+- Got ~NO_KERNEL_SUPPORT~ message
+
+#+BEGIN_QUOTE
+root@openwrt:~# logread
+Tue Nov 19 01:34:36 2024 daemon.notice netifd: Interface 'wan' is setting up now
+Tue Nov 19 01:34:36 2024 daemon.err modprobe: no module folders for kernel version 6.1.0-26-amd64 found
+Tue Nov 19 01:34:36 2024 daemon.info pppd[77793]: Plugin pppoe.so loaded.
+Tue Nov 19 01:34:36 2024 daemon.info pppd[77793]: PPPoE plugin from pppd 2.4.9
+Tue Nov 19 01:34:36 2024 daemon.err pppd[77793]: Couldn't open the /dev/ppp device: No such file or directory
+Tue Nov 19 01:34:36 2024 daemon.notice netifd: wan (77793): /usr/sbin/pppd: You need to create the /dev/ppp device node by
+Tue Nov 19 01:34:36 2024 daemon.notice netifd: wan (77793): executing the following command as root:
+Tue Nov 19 01:34:36 2024 daemon.notice netifd: wan (77793):     mknod /dev/ppp c 108 0
+Tue Nov 19 01:34:36 2024 daemon.notice netifd: wan (77793):
+Tue Nov 19 01:34:36 2024 daemon.err pppd[77793]: You need to create the /dev/ppp device node by executing the following command as root:        mknod /dev/ppp c 108 0
+Tue Nov 19 01:34:36 2024 daemon.notice netifd: Interface 'wan' is now down
+Tue Nov 19 01:34:36 2024 daemon.notice netifd: Interface 'wan' is setting up now
+Tue Nov 19 01:34:36 2024 daemon.err modprobe: no module folders for kernel version 6.1.0-26-amd64 found
+root@openwrt:~# mknod /dev/ppp c 108 0
+mknod: /dev/ppp: Operation not permitted
+#+END_QUOTE
+
+- You can change just the Wi-Fi access point before going for the final blow
+- You'll only be able to access your host from the bridge IP
+- You can still access your new router with the IP from the old LAN
+
+** PPPoE Config
+
+- It seems that we need to bind the ppp interface from the host to the container - [[https://discuss.linuxcontainers.org/t/how-to-pass-host-dev-file-to-unprivileged-containers/14919][reference]]
+
+#+BEGIN_SRC
+# /etc/config/network
+
+config interface 'wan'
+        option proto 'pppoe'
+        option device 'eth0'
+        option username '<username>'
+        option password '<password>'
+        option ipv6 'auto'
+#+END_SRC
+
+** DHCP Config
+
+#+BEGIN_SRC
+# /etc/config/network
+
+config interface 'wan'
+        option proto 'dhcp'
+        option device 'eth0'
+#+END_SRC
+
+* TODO Adding all the interfaces
+
+I think I should have used a "dumb" bridge interface for the device that would have mapped to the currently DHCPed nic and the bridge right after it, it would have been much easier. The process below doesn't work because I don't know why, if I move to the second bridge and delete the first then things stop as well. I suppose the address the second acquires even without being bound to the first happens because the first gets the host connected to OpenWrt's DHCP and give it an address, but that connection drops the moment I try to edit the current config. Should I restart the machine after configuring the second interface? I don't know, but I'll use this dumb interface when I write a proper guide
+
+- You'll need to create another bridge because you can't move a network while everything is up
+    - If you try to move ~eth2 -> incusbr0~ to ~eth2 -> enp3s0~ and ~eth3 -> incusbr0~, the system will try to connect incusbr0 twice instead of "simply" rerouting things
+    - When you edit a live config, the system will try to not lose conectivity (? do everything at once? ...?), so your bridge will remain connected while it's configured in other places, and since one of those other places configures your bridge too, then the system can never complete
+- Configure this 2nd bridge in your instance
+- Connect to the address on this 2nd bridge, and move the 1st bridge to a new config
+- Connect to the address on the 1st bridge, and delete the 2nd bridge
+- Rename the connection of the 1st bridge, and all should be fine!!!
+
+* Configure boot options
+
+Edit the YAML and put the following:
+
+#+BEGIN_SRC yml
+config:
+  boot.autorestart: 'true'
+  boot.autostart: 'true'
+  boot.autostart.priority: '99'
+  boot.stop.priority: '-99'
+#+END_SRC
