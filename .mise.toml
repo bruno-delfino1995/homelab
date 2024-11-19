@@ -1,0 +1,3 @@
+[env]
+KDBX_DATABASE = "path in your filesystem"
+KDBX_ENTRY = "path inside your vault"
