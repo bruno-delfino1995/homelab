@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -uo pipefail
+IFS=$'\n\t'
+
+echo -n "Enter password to unlock your database: " >&2
+PASSWORD=$(bw get password "$BITWARDEN_ENTRY" 2> /dev/null)
+
+if [ $? -ne 0 ]; then
+	echo -e "\nUnable to unlock your database" >&2
+	exit 1
+fi
+
+echo "" >&2
+echo "$PASSWORD" | $@

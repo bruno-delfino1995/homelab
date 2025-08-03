@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+IFS=$'\n\t'
+
+DIR=$(realpath "$(dirname "$0")")
+
+cd "$DIR" || exit 1
+
+HOST="$1"
+shift
+
+printf -v IN_CMD '%q ' "$@"
+printf -v CMD '%q ' bash -c "$IN_CMD"
+
+./guarded ansible "$HOST" --vault-password-file=/bin/cat -m ansible.builtin.shell -b -a "$CMD"

@@ -1,0 +1,67 @@
+---
+- name: Clean SSH modular configs
+  notify: Reload SSH config
+  block:
+    - name: ... remove
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config.d
+        state: absent
+
+    - name: ... recreate
+      ansible.builtin.file:
+        path: /etc/ssh/sshd_config.d
+        state: directory
+
+
+- name: Push hardened config to server
+  notify: Reload SSH config
+  block:
+    - name: ... for base config
+      ansible.builtin.copy:
+        src: files/etc/ssh/sshd_config
+        dest: /etc/ssh/sshd_config
+
+    - name: ... for ssh crypto policies
+      ansible.builtin.copy:
+        src: files/etc/ssh/sshd_config.d/40-redhat-crypto-policies.conf
+        dest: /etc/ssh/sshd_config.d/40-redhat-crypto-policies.conf
+
+    - name: ... for crypto policies
+      ansible.builtin.copy:
+        src: files/etc/crypto-policies/back-ends/opensshserver.config
+        dest: /etc/crypto-policies/back-ends/opensshserver.config
+
+- name: Remove small Diffie-Hellman moduli
+  block:
+    - name: ... create safe config
+      ansible.builtin.shell: |
+        awk '$5 >= 3071' /etc/ssh/moduli > /etc/ssh/moduli.safe
+
+    - name: ... replace config
+      ansible.builtin.copy:
+        remote_src: true
+        force: true
+        src: /etc/ssh/moduli.safe
+        dest: /etc/ssh/moduli
+
+- name: Regenerate host keys
+  block:
+    - name: ... ED25519
+      community.crypto.openssh_keypair:
+        path: /etc/ssh/ssh_host_ed25519_key
+        type: ed25519
+        force: true
+
+    - name: ... RSA
+      community.crypto.openssh_keypair:
+        path: /etc/ssh/ssh_host_rsa_key
+        type: rsa
+        size: 4096
+        force: true
+
+    - name: ... ECDSA
+      community.crypto.openssh_keypair:
+        path: /etc/ssh/ssh_host_ecdsa_key
+        type: ecdsa
+        force: true
+        state: absent

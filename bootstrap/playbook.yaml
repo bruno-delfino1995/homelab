@@ -1,0 +1,17 @@
+---
+- name: Setup machine for operation with Ansible
+  hosts: all
+  gather_facts: true
+  any_errors_fatal: true
+  tasks:
+   - name: Secure SSH server
+     include_tasks: tasks/ssh_security.yaml
+
+   - name: Configure operator user
+     include_tasks: tasks/operator.yaml
+
+  handlers:
+    - name: Reload SSH config
+      ansible.builtin.systemd_service:
+        name: sshd.service
+        state: restarted

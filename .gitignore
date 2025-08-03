@@ -1,0 +1,6 @@
+# Ansible secrets
+**/host_vars/**/secrets.yaml
+**/group_vars/**/secrets.yaml
+
+# Python virtual env
+.venv

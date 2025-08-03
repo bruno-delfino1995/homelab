@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+IFS=$'\n\t'
+
+DIR=$(realpath "$(dirname "$0")")
+
+cd "$DIR" || exit 1
+
+./guarded ansible-vault encrypt_string --vault-password-file=/bin/cat "$1"

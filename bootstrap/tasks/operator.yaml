@@ -1,0 +1,28 @@
+---
+- name: Ensure 'wheel' group exists
+  ansible.builtin.group:
+    name: wheel
+    state: present
+
+- name: Allow 'wheel' group to have passwordless sudo
+  ansible.builtin.lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^%wheel'
+    line: '%wheel  ALL=(ALL)       ALL'
+
+- name: Create operator with sudo powers
+  ansible.builtin.user:
+    name: "{{ operator_username }}"
+    password: "{{ operator_password | string | password_hash('sha512') }}"
+    shell: /bin/bash
+    groups: wheel
+    append: yes
+    state: present
+    createhome: yes
+
+- name: Configure SSH key for operator
+  ansible.posix.authorized_key:
+    user: "{{ operator_username }}"
+    state: present
+    key: "{{ operator_public_ssh_key }}"

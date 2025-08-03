@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+IFS=$'\n\t'
+
+DIR=$(realpath "$(dirname "$0")")
+
+cd "$DIR" || exit 1
+
+if [[ -v 2 ]]; then
+  ./guarded ansible-playbook --vault-password-file=/bin/cat --limit="$1" $2
+else
+  ./guarded ansible-playbook --vault-password-file=/bin/cat $1
+fi
