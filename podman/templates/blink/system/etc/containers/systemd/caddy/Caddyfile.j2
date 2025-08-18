@@ -1,0 +1,12 @@
+{
+  email "{{ email }}"
+  acme_ca "{{ acme_ca }}"
+}
+
+{{ domain }} {
+  respond "Hello, I'm working fine \o/ Now fuck off!!!"
+}
+
+a.b.c.d.e.f.g.h.{{ domain }} {
+  respond "We can't go any deeper"
+}

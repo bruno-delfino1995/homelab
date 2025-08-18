@@ -1,0 +1,30 @@
+---
+- name: Configure machine as a "Podman" host
+  hosts: podman
+  gather_facts: true
+  any_errors_fatal: true
+  tasks:
+    - include_tasks: tasks/password.yaml
+
+    - name: Install podman
+      become: true
+      ansible.builtin.dnf:
+        name: podman
+
+    - name: Send plain system files
+      become: true
+      ansible.builtin.copy:
+        src: "files/{{ inventory_hostname }}/system/"
+        dest: /
+
+    - name: Send templated system files
+      become: true
+      ansible.builtin.template:
+         src: "templates/{{ inventory_hostname }}/system/etc/containers/systemd/caddy/Caddyfile.j2"
+         dest: /etc/containers/systemd/caddy/Caddyfile
+
+    - name: Start systemd services
+      become: true
+      ansible.builtin.systemd:
+        daemon_reload: true
+        name: default.target
