@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+#USAGE about="Encrypt a value through ansible-vault"
+#USAGE arg "<value>" help="String to encrypt for your vault"
+
 set -euo pipefail
 IFS=$'\n\t'
 

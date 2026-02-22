@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+#USAGE about="Run the given playbook with an unlocked vault"
+#USAGE arg "[host]" help="Specific host to run the playbook on"
+#USAGE arg "<playbook>" help="File containing the playbook to run"
+
+set -euo pipefail
+IFS=$'\n\t'
+
+DIR=$(realpath "$(dirname "$0")")
+
+CWD="$(pwd)"
+cd "$DIR" || exit 1
+
+SCRIPTS="$(pwd)"
+
+function resolve () 
+{
+  local WHERE="$1"
+
+  echo $(realpath "${CWD}/${WHERE}")
+}
+
+if [[ -v 2 ]]; then
+  PLAYBOOK=$(resolve "$2")
+else
+  PLAYBOOK=$(resolve "$1")
+fi
+
+cd $(dirname "$PLAYBOOK") || exit 1
+
+PLAYBOOK=$(basename "$PLAYBOOK")
+
+if [[ -v 2 ]]; then
+  exec "${SCRIPTS}/guarded" ansible-playbook --vault-password-file=/bin/cat --limit="$1" $PLAYBOOK
+else
+  exec "${SCRIPTS}/guarded" ansible-playbook --vault-password-file=/bin/cat $PLAYBOOK
+fi

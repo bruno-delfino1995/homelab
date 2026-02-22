@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+#USAGE about="Send vault password to anything"
+#USAGE arg "<cmd>" var=#true help="Command to receive password through STDIN"
+
 set -uo pipefail
 IFS=$'\n\t'
 

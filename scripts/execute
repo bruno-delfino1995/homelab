@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+#USAGE about="Execute anything in a specific host"
+#USAGE arg "<cmd>" var=#true help="Command to send to target host"
+
 set -euo pipefail
 IFS=$'\n\t'
 
